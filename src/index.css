@@ -5,9 +5,183 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  caret-color: transparent;
+  position: relative;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.app-wrapper {
+  height: 100vh;
+  width: 100vw;
+}
+
+.main-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.letter {
+  width: 60px;
+  height: 60px;
+  margin: 3px;
+  text-align: center;
+  font-size: xx-large;
+  font-weight: 700;
+  font-family: Arial, Helvetica, sans-serif;
+  border: 2px solid lightgrey;
+}
+
+.letter:hover {
+  cursor: default;
+}
+
+.letter:focus {
+  outline: none;
+}
+
+.has-value {
+  border: 2px solid grey;
+}
+
+.green {
+  background-color: green;
+  border: 2px solid green;
+}
+
+.yellow {
+  background-color: #b59f3b;
+  border: 2px solid #b59f3b ;
+}
+
+.input-animation {
+  border: 2px solid grey;
+  transition: transform .0.1s;
+  animation-name: zoom;
+  animation-duration: 0.1s;
+}
+
+.rotate-animation {
+  animation: rotateX 0.5s linear;
+}
+
+.shake-animation {
+  animation: shake 0.5s;
+}
+
+.text-white {
+  color: white;
+}
+
+.grey {
+  background-color: grey;
+  border: 2px solid grey;
+}
+
+.toaster {
+  color: white;
+  position: absolute;
+  background-color: black;
+  display: flex;
+  align-items: center;
+  align-content: center;
+  font-size: medium;
+  font-weight: 600;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: auto;
+  height: 40px;
+  top: 0;
+  left: 0;
+  box-shadow: 1px 1px 2px grey;
+  border-radius: 4px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  top: 10%;
+}
+
+.giga-chad-container {
+  display: flex;
+  height: 80%;
+  width: 80%;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.giga-chad-container > div {
+  font-size: 100px;
+}
+
+u {
+  font-size: 20px;
+}
+
+u:hover {
+  cursor: pointer;
+}
+
+.slide-left-animation {
+  animation: slide-left 0.5s;
+}
+
+.slide-right-animation {
+  animation: slide-right 1s;
+}
+
+.slide-left-animation-1 {
+  animation: slide-left 1.5s;
+}
+
+.slide-right-animation-1 {
+  animation: slide-right 2s;
+}
+
+@keyframes slide-left {
+  0% {
+    margin-right: -100%;
+  }
+  100% {
+    margin-left: initial
+  }
+}
+
+@keyframes slide-right {
+  0% {
+    margin-left: -100%;
+  }
+  100% {
+    margin-left: initial
+  }
+}
+
+
+@keyframes zoom {
+  100% {transform: scale(1.1)}
+}
+
+@keyframes rotateX {
+	0% {
+		transform: rotateX(90deg);
+	}
+
+	100% {
+		transform: rotateX(0deg);
+	}
+}
+
+@keyframes shake {
+  0% { transform: translateX(0) }
+  25% { transform: translateX(5px) }
+  50% { transform: translateX(-5px) }
+  75% { transform: translateX(5px) }
+  100% { transform: translateX(0) }
+ }
+
