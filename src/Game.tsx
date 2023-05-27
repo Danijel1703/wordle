@@ -422,23 +422,11 @@ type Action = {
 };
 
 const updateTakes = (takes: any, action: Action) => {
-  console.log(takes);
   switch (action.type) {
     case "INITIALIZE_TAKES":
-      return { ...action.takes };
+      return { ...takes, ...action.takes };
     case "UPDATE_LETTER":
-      const activeTake = find(takes, (t) => action.take?.domId === t.domId);
-      const letter = find(
-        activeTake.word,
-        (l) => action.letter?.domId === l.domId
-      );
-      letter.value = action.value;
-      return takes.map((t: Take) => {
-        if (t.domId === activeTake.domId) {
-          return { ...t };
-        }
-        return t;
-      });
+      const take = find(takes, (t) => action.take?.domId === t.domId);
   }
 };
 
