@@ -1,29 +1,13 @@
-import {
-  concat,
-  each,
-  every,
-  filter,
-  find,
-  first,
-  includes,
-  indexOf,
-  isEmpty,
-  last,
-  map,
-  sample,
-  size,
-  toUpper,
-} from "lodash-es";
+import { filter, map, range, sample, size } from "lodash-es";
 import React, {
   ChangeEvent,
-  RefObject,
-  createRef,
+  memo,
+  useCallback,
   useEffect,
   useReducer,
   useState,
 } from "react";
 import words from "./words";
-import { type } from "os";
 
 // type Letter = {
 //   id: string;
@@ -372,131 +356,150 @@ type Letter = {
   value: string;
   isCorrect: boolean;
   consists: boolean;
-  ref: RefObject<HTMLInputElement>;
+  takeId: string;
 };
 
 type Word = Array<Letter>;
 
 type Take = {
+  id: string;
   domId: string;
-  word: Word;
+  letters: Word;
   isSubmitted: boolean;
 };
 
-function Game() {
-  const [dailyWord, setDailyWord] = useState<Array<DailyWordLetter>>([]);
-  useEffect(() => {
-    setDailyWord(initializeDailyWord());
-  }, []);
+type Action = {
+  type: string;
+  payload: Array<Take> | UpdateLetterPayload;
+};
 
-  const initializeDailyWord = () => {
-    const dw = [];
-    for (let i = 0; i < size(word); i++) {
-      const id = "letter" + i;
-      dw.push({
+type UpdateLetterPayload = {
+  value: string;
+  letter: Letter;
+};
+
+type State = {
+  takes: Array<Take>;
+  letter: Letter;
+};
+
+type LetterProps = {
+  letter: Letter;
+  value: string;
+  onChange: Function;
+};
+
+const initializeDailyWord = () => {
+  const letters = range(size(word));
+  const dailyWord = map(letters, (letter, index) => {
+    const id = "letter" + index;
+    return {
+      id: id,
+      value: word[index],
+      letterCount: size(filter(word, (l) => l === word[index])),
+    };
+  });
+  return dailyWord;
+};
+
+const initializeTakes = () => {
+  const lettersRange = range(size(word));
+  const takesRange = range(size(word) + 1);
+  const takes: Array<Take> = map(takesRange, (take, index) => {
+    const takeId = "take" + index;
+    const letters: Array<Letter> = map(lettersRange, (letter, index) => {
+      const id = "letter" + index;
+      const domId = takeId + "letter" + index;
+      return {
         id: id,
-        value: word[i],
-        letterCount: filter(word, (l) => l === word[i]).length,
-      });
-    }
-    return dw;
-  };
+        takeId: takeId,
+        domId: domId,
+        value: "",
+        isCorrect: false,
+        consists: false,
+      };
+    });
+    return {
+      domId: takeId,
+      id: takeId,
+      letters: letters,
+      isSubmitted: false,
+    };
+  });
+  return takes;
+};
 
-  return (
-    <div className="game-wrapper">
-      <Takes word={dailyWord} />
-    </div>
-  );
+const setTakes = (state: State, takes: Array<Take>) => takes;
+
+const updateLetter = (state: State, { letter, value }: UpdateLetterPayload) =>
+  map(state.takes, (take) => {
+    if (take.id === letter.takeId) {
+      return {
+        ...take,
+        letters: map(take.letters, (l) => {
+          if (l.domId === letter.domId) {
+            l.value = value;
+            return l;
+          }
+          return l;
+        }),
+      };
+    }
+    return take;
+  });
+
+const actionConstants = {
+  setTakes: "SET_TAKES",
+  updateLetter: "UPDATE_LETTER",
+};
+
+const actions: any = {
+  SET_TAKES: setTakes,
+  UPDATE_LETTER: updateLetter,
+};
+
+function reducer(state: State, action: Action) {
+  const actionType: string = action.type;
+  const triggerFunc: Function = actions[actionType];
+  const defaultState = triggerFunc(state, action.payload);
+
+  switch (actionType) {
+    case actionConstants.setTakes:
+      return { takes: triggerFunc(state, action.payload) };
+    case actionConstants.updateLetter:
+      return { takes: triggerFunc(state, action.payload) };
+    default:
+      return defaultState;
+  }
 }
 
-type TakeProps = {
-  word: Array<DailyWordLetter>;
-};
-
-type Action = {
-  takes?: Array<Take>;
-  value?: string;
-  letter?: Letter;
-  take?: Take;
-  type: string;
-};
-
-const updateTakes = (takes: any, action: Action) => {
-  switch (action.type) {
-    case "INITIALIZE_TAKES":
-      return { ...takes, ...action.takes };
-    case "UPDATE_LETTER":
-      const take = find(takes, (t) => action.take?.domId === t.domId);
-  }
-};
-
-function Takes({ word }: TakeProps) {
-  const [takes, dispatch] = useReducer(updateTakes, []);
+const dailyWord = initializeDailyWord();
+function Game() {
+  const [state, dispatch] = useReducer(reducer, { takes: [] });
 
   useEffect(() => {
-    initializeTakes();
-  }, [word]);
+    dispatch({ type: actionConstants.setTakes, payload: initializeTakes() });
+  }, []);
+  console.log(state.takes);
+  return <></>;
+}
 
-  const initializeTakes = () => {
-    const takes = [];
-    for (let i = 0; i < size(word) + 1; i++) {
-      const takeId = "take" + i;
-      const w: Array<Letter> = [];
-      for (let i = 0; i < size(word); i++) {
-        const id = "letter" + i;
-        const domId = takeId + "letter" + i;
-        w.push({
-          id: id,
-          domId: domId,
-          value: "",
-          isCorrect: false,
-          consists: false,
-          ref: createRef<HTMLInputElement>(),
-        });
-      }
-      takes.push({
-        domId: takeId,
-        word: w,
-        isSubmitted: false,
-      });
-    }
-    dispatch({ type: "INITIALIZE_TAKES", takes: takes });
-  };
-
-  const onChange = (
-    e: ChangeEvent<HTMLInputElement>,
-    letter: Letter,
-    take: Take
-  ) => {
-    dispatch({
-      type: "UPDATE_LETTER",
-      value: e.target.value,
-      letter,
-      take,
+const RenderLetter = memo(({ letter, value, onChange }: LetterProps) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    onChange({
+      type: actionConstants.updateLetter,
+      payload: { value: e.target.value, letter: letter },
     });
   };
 
   return (
-    <>
-      {map(takes, (take) => (
-        <div id={take.domId} key={take.domId}>
-          {map(take.word, (letter) => {
-            const disabled = false;
-            return (
-              <input
-                key={letter.domId}
-                id={letter.domId}
-                value={letter.value}
-                maxLength={1}
-                onChange={(e) => onChange(e, letter, take)}
-                disabled={disabled}
-              />
-            );
-          })}
-        </div>
-      ))}
-    </>
+    <input
+      value={value}
+      type="text"
+      id={letter.domId}
+      onChange={handleChange}
+    />
   );
-}
+});
 
 export default Game;
