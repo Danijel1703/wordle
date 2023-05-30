@@ -1,13 +1,15 @@
-import { filter, map, range, sample, size } from "lodash-es";
+import { filter, map, range, sample, size } from 'lodash-es';
 import React, {
-  ChangeEvent,
-  memo,
-  useCallback,
-  useEffect,
-  useReducer,
-  useState,
-} from "react";
-import words from "./words";
+	ChangeEvent,
+	RefObject,
+	createRef,
+	memo,
+	useCallback,
+	useEffect,
+	useReducer,
+	useState,
+} from 'react';
+import words from './words';
 
 // type Letter = {
 //   id: string;
@@ -342,164 +344,183 @@ import words from "./words";
 
 // export default Game;
 
-const word = sample(words) || "";
+const word = sample(words) || '';
 
 type DailyWordLetter = {
-  id: string;
-  value: string;
-  letterCount: number;
+	id: string;
+	value: string;
+	letterCount: number;
 };
 
 type Letter = {
-  id: string;
-  domId: string;
-  value: string;
-  isCorrect: boolean;
-  consists: boolean;
-  takeId: string;
+	id: string;
+	domId: string;
+	value: string;
+	isCorrect: boolean;
+	consists: boolean;
+	takeId: string;
+	ref: RefObject<HTMLInputElement>;
 };
 
 type Word = Array<Letter>;
 
 type Take = {
-  id: string;
-  domId: string;
-  letters: Word;
-  isSubmitted: boolean;
+	id: string;
+	domId: string;
+	letters: Word;
+	isSubmitted: boolean;
 };
 
 type Action = {
-  type: string;
-  payload: Array<Take> | UpdateLetterPayload;
+	type: string;
+	payload: Array<Take> | UpdateLetterPayload;
 };
 
 type UpdateLetterPayload = {
-  value: string;
-  letter: Letter;
+	value: string;
+	letter: Letter;
 };
 
 type State = {
-  takes: Array<Take>;
-  letter: Letter;
+	takes: Array<Take>;
+	letter: Letter;
 };
 
 type LetterProps = {
-  letter: Letter;
-  value: string;
-  onChange: Function;
+	letter: Letter;
+	onChange: Function;
 };
 
 const initializeDailyWord = () => {
-  const letters = range(size(word));
-  const dailyWord = map(letters, (letter, index) => {
-    const id = "letter" + index;
-    return {
-      id: id,
-      value: word[index],
-      letterCount: size(filter(word, (l) => l === word[index])),
-    };
-  });
-  return dailyWord;
+	const letters = range(size(word));
+	const dailyWord = map(letters, (letter, index) => {
+		const id = 'letter' + index;
+		return {
+			id: id,
+			value: word[index],
+			letterCount: size(filter(word, (l) => l === word[index])),
+		};
+	});
+	return dailyWord;
 };
 
 const initializeTakes = () => {
-  const lettersRange = range(size(word));
-  const takesRange = range(size(word) + 1);
-  const takes: Array<Take> = map(takesRange, (take, index) => {
-    const takeId = "take" + index;
-    const letters: Array<Letter> = map(lettersRange, (letter, index) => {
-      const id = "letter" + index;
-      const domId = takeId + "letter" + index;
-      return {
-        id: id,
-        takeId: takeId,
-        domId: domId,
-        value: "",
-        isCorrect: false,
-        consists: false,
-      };
-    });
-    return {
-      domId: takeId,
-      id: takeId,
-      letters: letters,
-      isSubmitted: false,
-    };
-  });
-  return takes;
+	const lettersRange = range(size(word));
+	const takesRange = range(size(word) + 1);
+	const takes: Array<Take> = map(takesRange, (take, index) => {
+		const takeId = 'take' + index;
+		const letters: Array<Letter> = map(lettersRange, (letter, index) => {
+			const id = 'letter' + index;
+			const domId = takeId + 'letter' + index;
+			return {
+				id: id,
+				takeId: takeId,
+				domId: domId,
+				value: '',
+				isCorrect: false,
+				consists: false,
+				ref: createRef(),
+			};
+		});
+		return {
+			domId: takeId,
+			id: takeId,
+			letters: letters,
+			isSubmitted: false,
+		};
+	});
+	return takes;
 };
 
 const setTakes = (state: State, takes: Array<Take>) => takes;
 
 const updateLetter = (state: State, { letter, value }: UpdateLetterPayload) =>
-  map(state.takes, (take) => {
-    if (take.id === letter.takeId) {
-      return {
-        ...take,
-        letters: map(take.letters, (l) => {
-          if (l.domId === letter.domId) {
-            l.value = value;
-            return l;
-          }
-          return l;
-        }),
-      };
-    }
-    return take;
-  });
+	map(state.takes, (take) => {
+		if (take.id === letter.takeId) {
+			return {
+				...take,
+				letters: map(take.letters, (l) => {
+					if (l.domId === letter.domId) {
+						l.value = letter.ref.current?.value || '';
+						return l;
+					}
+					return l;
+				}),
+			};
+		}
+		return take;
+	});
 
 const actionConstants = {
-  setTakes: "SET_TAKES",
-  updateLetter: "UPDATE_LETTER",
+	setTakes: 'SET_TAKES',
+	updateLetter: 'UPDATE_LETTER',
 };
 
 const actions: any = {
-  SET_TAKES: setTakes,
-  UPDATE_LETTER: updateLetter,
+	SET_TAKES: setTakes,
+	UPDATE_LETTER: updateLetter,
 };
 
 function reducer(state: State, action: Action) {
-  const actionType: string = action.type;
-  const triggerFunc: Function = actions[actionType];
-  const defaultState = triggerFunc(state, action.payload);
+	const actionType: string = action.type;
+	const triggerFunc: Function = actions[actionType];
+	const defaultState = triggerFunc(state, action.payload);
 
-  switch (actionType) {
-    case actionConstants.setTakes:
-      return { takes: triggerFunc(state, action.payload) };
-    case actionConstants.updateLetter:
-      return { takes: triggerFunc(state, action.payload) };
-    default:
-      return defaultState;
-  }
+	switch (actionType) {
+		case actionConstants.setTakes:
+			return { takes: triggerFunc(state, action.payload) };
+		case actionConstants.updateLetter:
+			return { takes: triggerFunc(state, action.payload) };
+		default:
+			return defaultState;
+	}
 }
 
 const dailyWord = initializeDailyWord();
 function Game() {
-  const [state, dispatch] = useReducer(reducer, { takes: [] });
+	const [state, dispatch] = useReducer(reducer, { takes: [] });
+	const [initialTakes, setInitialTakes] = useState<Array<Take>>([]);
 
-  useEffect(() => {
-    dispatch({ type: actionConstants.setTakes, payload: initializeTakes() });
-  }, []);
-  console.log(state.takes);
-  return <></>;
+	useEffect(() => {
+		const initialTakes = initializeTakes();
+		dispatch({ type: actionConstants.setTakes, payload: [...initialTakes] });
+		setInitialTakes(initialTakes);
+	}, []);
+
+	const onChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>, letter: Letter) => {
+			dispatch({
+				type: actionConstants.updateLetter,
+				payload: { value: e.target.value, letter: letter },
+			});
+		},
+		[]
+	);
+
+	return (
+		<>
+			{map(initialTakes, (take) => {
+				return (
+					<div id={take.domId} className="take">
+						{map(take.letters, (letter) => {
+							return <RenderLetter onChange={onChange} letter={letter} />;
+						})}
+					</div>
+				);
+			})}
+		</>
+	);
 }
 
-const RenderLetter = memo(({ letter, value, onChange }: LetterProps) => {
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    onChange({
-      type: actionConstants.updateLetter,
-      payload: { value: e.target.value, letter: letter },
-    });
-  };
-
-  return (
-    <input
-      value={value}
-      type="text"
-      id={letter.domId}
-      onChange={handleChange}
-    />
-  );
-});
+const RenderLetter = ({ letter, onChange }: LetterProps) => {
+	return (
+		<input
+			type="text"
+			id={letter.domId}
+			onChange={(e) => onChange(e, letter)}
+			ref={letter.ref}
+		/>
+	);
+};
 
 export default Game;
