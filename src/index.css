@@ -43,9 +43,9 @@ code {
   cursor: default;
 }
 
-.letter:focus {
+/* .letter:focus {
   outline: none;
-}
+} */
 
 .has-value {
   border: 2px solid grey;
