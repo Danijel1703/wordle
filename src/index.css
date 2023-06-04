@@ -144,6 +144,10 @@ u:hover {
   animation: slide-right 2s;
 }
 
+.disabled {
+  pointer-events: none;
+}
+
 @keyframes slide-left {
   0% {
     margin-right: -100%;

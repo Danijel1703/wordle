@@ -1,18 +1,23 @@
 import {
+  compact,
+  each,
   filter,
   find,
   first,
   flatMap,
   groupBy,
+  includes,
   indexOf,
   isEmpty,
   map,
   range,
   sample,
   size,
+  toUpper,
 } from "lodash-es";
 import {
   ChangeEvent,
+  ForwardedRef,
   RefObject,
   createRef,
   forwardRef,
@@ -441,30 +446,113 @@ const setData = (
   ...state,
   ...initialData,
   activeLetter: first(initialData.letters),
+  activeTake: first(initialData.takes),
 });
 
 const keysConstants = {
   backspace: "Backspace",
+  enter: "Enter",
 };
+
+const ignoreKeys = [" ", "Alt", "Tab"];
 
 const updateLetter = (
   state: State,
   payload: { value: string; domId: string }
 ) => {
+  if (includes(ignoreKeys, payload.value)) return state;
   const letter = find(state.letters, (l: Letter) => l.domId === payload.domId);
   const index = indexOf(state.letters, letter);
   const nextLetter = state.letters[index + 1];
+  const previousLetter = state.letters[index - 1];
   switch (payload.value) {
     case keysConstants.backspace: {
-      return;
+      if (letter) {
+        let activeLetter = previousLetter || state.activeLetter;
+        const isFirstLetter = isFirst(
+          filter(state.letters, (l) => l.takeId === letter.takeId),
+          letter
+        );
+        const isLastLetter = isLast(
+          filter(state.letters, (l) => l.takeId === letter.takeId),
+          letter
+        );
+        if (
+          (!isSubmitted(state.takes, letter.takeId) && isFirstLetter) ||
+          (isLastLetter && !isEmpty(letter.value))
+        ) {
+          activeLetter = state.activeLetter;
+        }
+        letter.value = "";
+        return { ...state, activeLetter: activeLetter };
+      }
+      return state;
+    }
+    case keysConstants.enter: {
+      if (letter?.takeId) {
+        onSubmit(state, letter.takeId);
+      }
+      return state;
     }
     default: {
+      payload.value = toUpper(payload.value);
       if (letter) {
-        letter.value = payload.value;
-        return { ...state, activeLetter: nextLetter };
+        const isLastLetter = isLast(
+          filter(state.letters, (l) => l.takeId === letter.takeId),
+          letter
+        );
+        let activeLetter = nextLetter;
+        if (isLastLetter && !isEmpty(letter.value)) {
+          letter.value = letter.value;
+        } else {
+          letter.value = payload.value;
+        }
+        if (!isSubmitted(state.takes, letter.takeId) && isLastLetter) {
+          activeLetter = state.activeLetter;
+        }
+        return { ...state, activeLetter: activeLetter };
       }
     }
   }
+};
+
+const onSubmit = (state: State, takeId: string) => {
+  const take = find(state.takes, (t) => t.id === takeId);
+  const letters = filter(state.letters, (l) => l.takeId === takeId);
+  const dailyWordCopy = [...dailyWord];
+  if (take && letters) {
+    const correctLetters = compact(
+      map(letters, (letter) => {
+        const correctLetter = find(
+          dailyWordCopy,
+          (l) => l.id === letter.id && l.value === letter.value
+        );
+        return correctLetter;
+      })
+    );
+    const guessedLetters = compact(
+      map(letters, (letter) => {
+        const guessedLetter = find(
+          dailyWordCopy,
+          (l) => l.id !== letter.id && l.value === letter.value
+        );
+        return guessedLetter;
+      })
+    );
+  }
+};
+
+const isLast = (collection: Array<object>, obj: object) => {
+  return collection[indexOf(collection, obj) + 1] === undefined;
+};
+
+const isFirst = (collection: Array<object>, obj: object) => {
+  return collection[indexOf(collection, obj) - 1] === undefined;
+};
+
+const isSubmitted = (takes: Array<Take>, takeId: string) => {
+  const take = find(takes, (t) => t.id === takeId);
+  return take?.isSubmitted;
 };
 
 const actionConstants = {
@@ -510,7 +598,6 @@ function Game() {
 
   useEffect(() => {
     state.activeLetter.ref?.current?.focus();
-    console.log(state.activeLetter);
   }, [state.activeLetter]);
 
   return (
@@ -521,12 +608,12 @@ function Game() {
             {map(letters, (letter) => {
               return (
                 <RenderLetter
-                  ref={ref}
+                  ref={letter.ref}
                   key={letter.domId}
                   value={letter.value}
                   domId={letter.domId}
                   dispatch={dispatch}
-                  disabled={state.activeLetterId !== letter.domId}
+                  disabled={state.activeLetter.id !== letter.domId}
                 />
               );
             })}
@@ -542,27 +629,32 @@ type LetterProps = {
   dispatch: Function;
   value: string;
   disabled: boolean;
-  ref: RefObject<HTMLInputElement>;
 };
 
 const RenderLetter = memo(
-  forwardRef(({ value, domId, dispatch, disabled, ref }: LetterProps) => {
+  forwardRef((props: LetterProps, ref: ForwardedRef<HTMLInputElement>) => {
+    const { value, domId, dispatch, disabled } = props;
     const onChange = (e: React.KeyboardEvent<HTMLInputElement>) => {
       dispatch({
         type: actionConstants.updateLetter,
         payload: { value: e.key, domId: domId },
       });
     };
+
     return (
       <input
         ref={ref}
         value={value}
         type="text"
+        tabIndex={-1}
         maxLength={1}
+        onChange={() => {}}
         onKeyDown={onChange}
-        className={classNames("letter", { "input-animation": !isEmpty(value) })}
+        className={classNames("letter", {
+          "input-animation": !isEmpty(value),
+          disabled: disabled,
+        })}
         autoFocus={!disabled}
-        disabled={disabled}
       />
     );
   })
