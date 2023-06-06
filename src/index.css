@@ -39,13 +39,17 @@ code {
   border: 2px solid lightgrey;
 }
 
+.letter-border {
+  border: 2px solid grey;
+}
+
 .letter:hover {
   cursor: default;
 }
 
-/* .letter:focus {
+.letter:focus {
   outline: none;
-} */
+}
 
 .has-value {
   border: 2px solid grey;
@@ -62,7 +66,6 @@ code {
 }
 
 .input-animation {
-  border: 2px solid grey;
   transition: transform .0.1s;
   animation-name: zoom;
   animation-duration: 0.1s;
