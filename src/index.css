@@ -151,6 +151,12 @@ u:hover {
   pointer-events: none;
 }
 
+.popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 @keyframes slide-left {
   0% {
     margin-right: -100%;
