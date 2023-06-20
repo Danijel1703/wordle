@@ -1,6 +1,7 @@
 import {
   compact,
   each,
+  every,
   filter,
   find,
   first,
@@ -8,6 +9,7 @@ import {
   groupBy,
   includes,
   indexOf,
+  isBoolean,
   isEmpty,
   last,
   map,
@@ -30,7 +32,7 @@ import classNames from "classnames";
 import { Action, Letter, LetterProps, State, Take } from "../types";
 import { createPortal } from "react-dom";
 
-const word = "ERROR" || sample(words);
+const word = sample(words) || "";
 
 const initializeDailyWord = () => {
   const letters = range(size(word));
@@ -59,6 +61,7 @@ const initializeData = () => {
       id: takeId,
       letterIds: letterIds,
       isSubmitted: false,
+      ref: createRef(),
     };
   });
   const letters: Array<Letter> = flatMap(takes, (take) =>
@@ -105,18 +108,51 @@ const toggleInputDeleteNext = (
   return { ...state, deleteNext, inputNext };
 };
 
-const isValid = (payload: { value: string; domId: string }) => {
-  const invalidKey =
-    !includes(allowKeys, payload.value) && size(payload.value) > 1;
-  return true;
+const getError = ({
+  value,
+  domId,
+  state,
+}: {
+  value: string;
+  domId: string;
+  state: State;
+}) => {
+  const invalidKey = !includes(allowKeys, value) && size(value) > 1;
+  if (invalidKey) return true;
+  const take = find(state.takes, (take) => includes(take.letterIds, domId));
+  const letters = filter(state.letters, (letter) => letter.takeId === take?.id);
+  if (value === keysConstants.enter) {
+    const notEnoughLetters = !every(
+      letters,
+      (letter) => !isEmpty(letter.value)
+    );
+    const word = map(letters, (letter) => letter.value).join("");
+    const invalidWord = !includes(words, word);
+    if (notEnoughLetters) return "Not enough letters";
+    if (invalidWord) return "Not in word list";
+  }
+  return undefined;
 };
 
 const updateLetter = (
   state: State,
   payload: { value: string; domId: string }
 ) => {
-  const isInvalid = !isValid(payload);
-  if (isInvalid) return state;
+  const error = getError({
+    value: payload.value,
+    domId: payload.domId,
+    state: state,
+  });
+  if (state.wordGuessed) return state;
+  if (error) {
+    if (isBoolean(error)) return state;
+    const take = find(state.takes, (take) => take.id === state.activeTakeId);
+    take?.ref.current?.classList.add("shake-animation");
+    setTimeout(() => {
+      take?.ref.current?.classList.remove("shake-animation");
+    }, 500);
+    return { ...state, message: error };
+  }
   switch (payload.value) {
     case keysConstants.backspace: {
       payload.value = "";
@@ -126,10 +162,22 @@ const updateLetter = (
     case keysConstants.enter: {
       const letter = getNextLetter(state, payload.value);
       const nextTakeLetter = onSubmit(state, letter.takeId);
+      const letters = filter(
+        state.letters,
+        (letter) => letter.takeId === state.activeTakeId
+      );
+      const wordGuessed = every(letters, (letter) => letter.isCorrect);
+      const message =
+        every(state.takes, (take) => take.isSubmitted) && !wordGuessed
+          ? word
+          : state.message;
       return {
         ...state,
         activeLetter: nextTakeLetter,
         submittedTakeId: letter.takeId,
+        activeTakeId: nextTakeLetter.takeId,
+        wordGuessed: wordGuessed,
+        message: message,
       };
     }
     default: {
@@ -211,6 +259,10 @@ const onSubmit = (state: State, takeId: string) => {
   return nextLetter || state.activeLetter;
 };
 
+const resetMessage = (state: State) => {
+  return { ...state, message: undefined };
+};
+
 const resetSubmittedTake = (state: State) => {
   return { ...state, submittedTakeId: undefined };
 };
@@ -224,6 +276,7 @@ const actionConstants = {
   updateLetter: "UPDATE_LETTER",
   toggleInputDeleteNext: "TOGGLE_INPUT_DELETE_NEXT",
   resetSubmittedTake: "RESET_SUBMITTED_TAKE",
+  resetMessage: "RESET_MESSAGE",
 };
 
 const actions: any = {
@@ -231,6 +284,7 @@ const actions: any = {
   UPDATE_LETTER: updateLetter,
   TOGGLE_INPUT_DELETE_NEXT: toggleInputDeleteNext,
   RESET_SUBMITTED_TAKE: resetSubmittedTake,
+  RESET_MESSAGE: resetMessage,
 };
 
 const defaultState = {
@@ -239,6 +293,7 @@ const defaultState = {
   activeLetter: {},
   activeTakeId: "",
   wordGuessed: false,
+  error: "",
 };
 
 function reducer(state: State, action: Action) {
@@ -304,23 +359,30 @@ function Game() {
         letter.ref.current?.classList.add("rotate-animation");
         letter.ref.current?.classList.add("text-white");
         letter.ref.current?.classList.add(bgColor);
-      }, index * 250);
+      }, index * 350);
       setTimeout(() => {
         if (index === size(letters) - 1) {
           setLoading(false);
           dispatch({ type: actionConstants.resetSubmittedTake, payload: null });
         }
-      }, size(letters) * 250);
+      }, size(letters) * 350);
     });
   }, [state.submittedTakeId, groupedLetters]);
 
+  useEffect(() => {
+    if (state.message) {
+      setTimeout(() => {
+        dispatch({ type: actionConstants.resetMessage, payload: null });
+      }, 2000);
+    }
+  }, [state.message]);
+
   return (
     <div className="main-wrapper">
-      {word}
       {map(groupedLetters, (letters, takeId) => {
         const take = find(state.takes, (t) => t.id === takeId);
         return (
-          <div className="take" id={takeId} key={takeId}>
+          <div className="take" id={takeId} key={takeId} ref={take.ref}>
             {map(letters, (letter) => {
               return (
                 <RenderLetter
@@ -342,7 +404,11 @@ function Game() {
           </div>
         );
       })}
-      {createPortal(<div className="popup">Gejmer</div>, document.body)}
+      {state.message &&
+        createPortal(
+          <div className="popup toaster">{state.message}</div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -370,23 +436,21 @@ const RenderLetter = memo(
     };
 
     return (
-      <React.Fragment>
-        <input
-          ref={ref}
-          value={value}
-          type="text"
-          tabIndex={-1}
-          maxLength={1}
-          onKeyDown={onChange}
-          className={classNames("letter", {
-            "input-animation": !isEmpty(value),
-            "input-active": !disabled,
-            disabled: disabled,
-            "letter-border": !isSubmitted && !isEmpty(value),
-          })}
-          autoFocus={!disabled}
-        />
-      </React.Fragment>
+      <input
+        ref={ref}
+        value={value}
+        type="text"
+        tabIndex={-1}
+        maxLength={1}
+        onKeyDown={onChange}
+        className={classNames("letter", {
+          "input-animation": !isEmpty(value),
+          "input-active": !disabled,
+          disabled: disabled,
+          "letter-border": !isSubmitted && !isEmpty(value),
+        })}
+        autoFocus={!disabled}
+      />
     );
   })
 );

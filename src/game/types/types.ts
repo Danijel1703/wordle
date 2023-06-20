@@ -15,6 +15,7 @@ export type Take = {
   domId: string;
   letterIds: Array<string>;
   isSubmitted: boolean;
+  ref: RefObject<HTMLInputElement>;
 };
 
 export type Action = {
@@ -29,6 +30,8 @@ export type State = {
   activeTakeId: string;
   deleteNext: boolean;
   inputNext: boolean;
+  message: boolean;
+  wordGuessed: boolean;
 };
 
 export type LetterProps = {

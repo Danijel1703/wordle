@@ -90,7 +90,6 @@ code {
 
 .toaster {
   color: white;
-  position: absolute;
   background-color: black;
   display: flex;
   align-items: center;
@@ -101,26 +100,8 @@ code {
   padding-right: 10px;
   width: auto;
   height: 40px;
-  top: 0;
-  left: 0;
   box-shadow: 1px 1px 2px grey;
   border-radius: 4px;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  top: 10%;
-}
-
-.giga-chad-container {
-  display: flex;
-  height: 80%;
-  width: 80%;
-  flex-direction: column;
-  justify-content: space-evenly;
-  align-items: center;
-}
-
-.giga-chad-container > div {
-  font-size: 100px;
 }
 
 u {
@@ -153,8 +134,9 @@ u:hover {
 
 .popup {
   position: absolute;
-  top: 0;
-  left: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  top: 10%;
 }
 
 @keyframes slide-left {
