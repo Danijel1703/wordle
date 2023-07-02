@@ -4,7 +4,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   caret-color: transparent;
-  position: relative;
 }
 
 code {
@@ -13,17 +12,18 @@ code {
 }
 
 .app-wrapper {
-  height: 100vh;
-  width: 100vw;
+  position: fixed;
+  width: 100%;
+  height: 100%;
 }
 
 .main-wrapper {
-  height: 100%;
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
 }
 
 .letter {
@@ -153,11 +153,17 @@ u:hover {
 }
 
 .keyboard-wrapper {
-  position: absolute;
-  bottom: 1%;
   display: flex;
   flex-direction: column;
+  margin-bottom: 1%;
 }
+
+.words-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10%;
+ }
 
 .row-0 {
   display: flex;
@@ -165,7 +171,7 @@ u:hover {
 
 .row-1 {
   display: flex;
-  padding-left: 25.5px;
+  margin-left: calc(1rem + 3px);
 }
 
 .row-2 {
@@ -173,8 +179,8 @@ u:hover {
 }
 
 .row-0-item {
-  height: 60px;
-  width: 45px;
+  width: 2rem;
+  height: 3rem;
   margin: 3px;
   display: flex;
   justify-content: center;
@@ -184,8 +190,8 @@ u:hover {
 }
 
 .row-1-item {
-  height: 60px;
-  width: 45px;
+  width: 2rem;
+  height: 3rem;
   margin: 3px;
   display: flex;
   justify-content: center;
@@ -195,9 +201,9 @@ u:hover {
 }
 
 .row-2-item {
-  height: 60px;
-  width: 45px;
   margin: 3px;
+  width: 2rem;
+  height: 3rem;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -215,11 +221,12 @@ u:hover {
 }
 
 .row-2-item:first-child {
-  width: 70px;
+  width: calc(3rem + 3px);
+  font-size: small;
 }
 
 .row-2-item:last-child {
-  width: 70px;
+  width: 3.1rem;
 }
 
 @keyframes slide-left {

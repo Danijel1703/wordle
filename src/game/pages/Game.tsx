@@ -122,77 +122,83 @@ function Game() {
   }, [state.message]);
 
   return (
-    <div className="main-wrapper">
-      {word}
-      {map(groupedLetters, (letters, takeId) => {
-        const take = find(state.takes, (t) => t.id === takeId);
-        return (
-          <div className="take" id={takeId} key={takeId} ref={take.ref}>
-            {map(letters, (letter) => {
-              return (
-                <RenderLetter
-                  consists={letter.consists && take.isSubmitted}
-                  isCorrect={letter.isCorrect && take.isSubmitted}
-                  isIncorrect={
-                    !letter.consists && !letter.isCorrect && take.isSubmitted
+    <React.Fragment>
+      <div className="main-wrapper">
+        <div className="words-grid">
+          {word}
+          {map(groupedLetters, (letters, takeId) => {
+            const take = find(state.takes, (t) => t.id === takeId);
+            return (
+              <div className="take" id={takeId} key={takeId} ref={take.ref}>
+                {map(letters, (letter) => {
+                  return (
+                    <RenderLetter
+                      consists={letter.consists && take.isSubmitted}
+                      isCorrect={letter.isCorrect && take.isSubmitted}
+                      isIncorrect={
+                        !letter.consists &&
+                        !letter.isCorrect &&
+                        take.isSubmitted
+                      }
+                      ref={letter.ref}
+                      key={letter.domId}
+                      value={letter.value}
+                      domId={letter.domId}
+                      dispatch={dispatch}
+                      disabled={state.activeLetter.domId !== letter.domId}
+                      loading={loading}
+                      onChange={onChange}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        <div className="keyboard-wrapper">
+          {map(state.keyboard, (row: Array<KeyboardKey>) => {
+            return (
+              <div className={`row-${first(row)?.row}`}>
+                {map(row, (item: KeyboardKey) => {
+                  let keyColor = "neutral";
+                  if (item.isCorrect) {
+                    keyColor = "green-key";
+                  } else if (item.consists) {
+                    keyColor = "yellow-key";
+                  } else if (
+                    !item.consists &&
+                    !item.isCorrect &&
+                    item.isSubmitted
+                  ) {
+                    keyColor = "grey-key";
                   }
-                  ref={letter.ref}
-                  key={letter.domId}
-                  value={letter.value}
-                  domId={letter.domId}
-                  dispatch={dispatch}
-                  disabled={state.activeLetter.domId !== letter.domId}
-                  loading={loading}
-                  onChange={onChange}
-                />
-              );
-            })}
-          </div>
-        );
-      })}
-      <div className="keyboard-wrapper">
-        {map(state.keyboard, (row: Array<KeyboardKey>) => {
-          return (
-            <div className={`row-${first(row)?.row}`}>
-              {map(row, (item: KeyboardKey) => {
-                let keyColor = "neutral";
-                if (item.isCorrect) {
-                  keyColor = "green-key";
-                } else if (item.consists) {
-                  keyColor = "yellow-key";
-                } else if (
-                  !item.consists &&
-                  !item.isCorrect &&
-                  item.isSubmitted
-                ) {
-                  keyColor = "grey-key";
-                }
-                return (
-                  <div
-                    className={`row-${item.row}-item font-${size(
-                      item.value
-                    )} ${keyColor}`}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => onChange(item.value, null)}
-                  >
-                    {item.value !== keysConstants.backspace ? (
-                      item.value
-                    ) : (
-                      <BackspaceIcon />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
+                  return (
+                    <div
+                      className={`row-${item.row}-item font-${size(
+                        item.value
+                      )} ${keyColor}`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onChange(item.value, null)}
+                    >
+                      {item.value !== keysConstants.backspace ? (
+                        item.value
+                      ) : (
+                        <BackspaceIcon />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
       {state.message &&
         createPortal(
           <div className="popup toaster">{state.message}</div>,
           document.body
         )}
-    </div>
+    </React.Fragment>
   );
 }
 
