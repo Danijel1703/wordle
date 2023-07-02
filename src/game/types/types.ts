@@ -32,6 +32,23 @@ export type State = {
   inputNext: boolean;
   message: boolean;
   wordGuessed: boolean;
+  dailyWord: Array<{ id: string; value: string; letterCount: number }>;
+  word: string;
+  keyboard: Keyboard;
+};
+
+export type Keyboard = {
+  firstRow: Array<KeyboardKey>;
+  secondRow: Array<KeyboardKey>;
+  thirdRow: Array<KeyboardKey>;
+};
+
+export type KeyboardKey = {
+  isCorrect: boolean;
+  consists: boolean;
+  value: string;
+  row: number;
+  isSubmitted: boolean;
 };
 
 export type LetterProps = {
@@ -43,4 +60,5 @@ export type LetterProps = {
   isCorrect: boolean;
   isIncorrect: boolean;
   loading: boolean;
+  onChange: Function;
 };

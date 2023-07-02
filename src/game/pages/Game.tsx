@@ -1,26 +1,16 @@
 import {
-  compact,
   each,
-  every,
-  filter,
   find,
   first,
-  flatMap,
   groupBy,
-  includes,
-  indexOf,
-  isBoolean,
   isEmpty,
-  last,
   map,
-  range,
   sample,
   size,
   toUpper,
 } from "lodash-es";
 import React, {
   ForwardedRef,
-  createRef,
   forwardRef,
   memo,
   useEffect,
@@ -29,263 +19,14 @@ import React, {
 } from "react";
 import words from "../../words";
 import classNames from "classnames";
-import { Action, Letter, LetterProps, State, Take } from "../types";
+import { KeyboardKey, Letter, LetterProps } from "../types";
 import { createPortal } from "react-dom";
+import { initializeDailyWord, initializeData, reducer } from "../state";
+import { actionConstants, keysConstants } from "../constants";
+import { initializeKeyboard } from "../state/initializers";
+import BackspaceIcon from "../../assets/BackspaceIcon";
 
-const word = sample(words) || "";
-
-const initializeDailyWord = () => {
-  const letters = range(size(word));
-  const dailyWord = map(letters, (letter, index) => {
-    const id = "letter" + index;
-    return {
-      id: id,
-      value: word[index],
-      letterCount: size(filter(word, (l) => l === word[index])),
-    };
-  });
-  return dailyWord;
-};
-
-const initializeData = () => {
-  const lettersRange = range(size(word));
-  const takesRange = range(size(word) + 1);
-  const takes: Array<Take> = map(takesRange, (take, index) => {
-    const takeId = "take" + index;
-    const letterIds: Array<string> = map(lettersRange, (letter, index) => {
-      const domId = takeId + "letter" + index;
-      return domId;
-    });
-    return {
-      domId: takeId,
-      id: takeId,
-      letterIds: letterIds,
-      isSubmitted: false,
-      ref: createRef(),
-    };
-  });
-  const letters: Array<Letter> = flatMap(takes, (take) =>
-    map(take.letterIds, (domId, index) => {
-      const id = "letter" + index;
-      return {
-        id: id,
-        takeId: take.id,
-        domId: domId,
-        value: "",
-        isCorrect: false,
-        consists: false,
-        ref: createRef(),
-      };
-    })
-  );
-  const data = { letters, takes };
-  return data;
-};
-
-const setData = (
-  state: State,
-  initialData: { takes: Array<Take>; letters: Array<Letter> }
-) => ({
-  ...state,
-  ...initialData,
-  activeLetter: first(initialData.letters),
-  activeTakeId: first(initialData.letters)?.takeId,
-});
-
-const keysConstants = {
-  backspace: "Backspace",
-  enter: "Enter",
-};
-
-const allowKeys = ["Backspace", "Enter"];
-
-const toggleInputDeleteNext = (
-  state: State,
-  payload: { activeLetter: Letter }
-) => {
-  const deleteNext = isEmpty(payload.activeLetter.value);
-  const inputNext = !isEmpty(payload.activeLetter.value);
-  return { ...state, deleteNext, inputNext };
-};
-
-const getError = ({
-  value,
-  domId,
-  state,
-}: {
-  value: string;
-  domId: string;
-  state: State;
-}) => {
-  const invalidKey = !includes(allowKeys, value) && size(value) > 1;
-  if (invalidKey) return true;
-  const take = find(state.takes, (take) => includes(take.letterIds, domId));
-  const letters = filter(state.letters, (letter) => letter.takeId === take?.id);
-  if (value === keysConstants.enter) {
-    const notEnoughLetters = !every(
-      letters,
-      (letter) => !isEmpty(letter.value)
-    );
-    const word = map(letters, (letter) => letter.value).join("");
-    const invalidWord = !includes(words, word);
-    if (notEnoughLetters) return "Not enough letters";
-    if (invalidWord) return "Not in word list";
-  }
-  return undefined;
-};
-
-const updateLetter = (
-  state: State,
-  payload: { value: string; domId: string }
-) => {
-  const error = getError({
-    value: payload.value,
-    domId: payload.domId,
-    state: state,
-  });
-  if (state.wordGuessed) return state;
-  if (error) {
-    if (isBoolean(error)) return state;
-    const take = find(state.takes, (take) => take.id === state.activeTakeId);
-    take?.ref.current?.classList.add("shake-animation");
-    setTimeout(() => {
-      take?.ref.current?.classList.remove("shake-animation");
-    }, 500);
-    return { ...state, message: error };
-  }
-  switch (payload.value) {
-    case keysConstants.backspace: {
-      payload.value = "";
-      const letter = getNextLetter(state, payload.value);
-      return { ...state, activeLetter: letter };
-    }
-    case keysConstants.enter: {
-      const letter = getNextLetter(state, payload.value);
-      const nextTakeLetter = onSubmit(state, letter.takeId);
-      const letters = filter(
-        state.letters,
-        (letter) => letter.takeId === state.activeTakeId
-      );
-      const wordGuessed = every(letters, (letter) => letter.isCorrect);
-      const message =
-        every(state.takes, (take) => take.isSubmitted) && !wordGuessed
-          ? word
-          : state.message;
-      return {
-        ...state,
-        activeLetter: nextTakeLetter,
-        submittedTakeId: letter.takeId,
-        activeTakeId: nextTakeLetter.takeId,
-        wordGuessed: wordGuessed,
-        message: message,
-      };
-    }
-    default: {
-      payload.value = toUpper(payload.value);
-      const letter = getNextLetter(state, payload.value);
-      return { ...state, activeLetter: letter };
-    }
-  }
-};
-
-const getNextLetter = (state: State, value: string) => {
-  const letter = state.activeLetter;
-  const letters = filter(state.letters, (l) => l.takeId === letter.takeId);
-  const index = indexOf(letters, letter);
-  const dir = isEmpty(value) ? -1 : 1;
-  const newLetter = letters[index + dir];
-  const isLastLetter = isLast(letters, letter) && !isEmpty(letter.value);
-  if (!isEmpty(value)) {
-    if (state.inputNext && newLetter) {
-      newLetter.value = value;
-    } else {
-      letter.value = isLastLetter ? letter.value : value;
-    }
-  } else {
-    letter.value = value;
-    if (state.deleteNext && newLetter) {
-      newLetter.value = value;
-    }
-  }
-  return newLetter || letter;
-};
-
-const onSubmit = (state: State, takeId: string) => {
-  const take = find(state.takes, (t) => t.id === takeId);
-  const letters = filter(state.letters, (l) => l.takeId === takeId);
-  const dailyWordCopy = [...dailyWord];
-  if (take && letters) {
-    take.isSubmitted = true;
-    const correctLetters = compact(
-      map(letters, (letter) => {
-        const correctLetter = find(
-          dailyWordCopy,
-          (l) => l.id === letter.id && l.value === letter.value
-        );
-        return correctLetter;
-      })
-    );
-    const guessedLetters = compact(
-      map(letters, (letter) => {
-        const guessedLetter = find(
-          dailyWordCopy,
-          (l) => l.id !== letter.id && l.value === letter.value
-        );
-        return guessedLetter;
-      })
-    );
-    each(correctLetters, (cl) => {
-      const letter = find(letters, (l) => l.id === cl.id);
-      if (letter) {
-        letter.isCorrect = true;
-        each(dailyWordCopy, (dwl) => {
-          if (dwl.value === cl.value) {
-            dwl.letterCount = dwl.letterCount - 1;
-          }
-        });
-      }
-    });
-    each(guessedLetters, (gl) => {
-      const letter = find(
-        letters,
-        (l) => l.value === gl.value && gl.id !== l.id && !l.consists
-      );
-      if (letter) {
-        letter.consists = !letter.isCorrect && gl.letterCount > 0;
-      }
-    });
-  }
-  const nextLetter = state.letters[indexOf(state.letters, last(letters)) + 1];
-  return nextLetter || state.activeLetter;
-};
-
-const resetMessage = (state: State) => {
-  return { ...state, message: undefined };
-};
-
-const resetSubmittedTake = (state: State) => {
-  return { ...state, submittedTakeId: undefined };
-};
-
-const isLast = (collection: Array<object>, obj: object) => {
-  return collection[indexOf(collection, obj) + 1] === undefined;
-};
-
-const actionConstants = {
-  setData: "SET_DATA",
-  updateLetter: "UPDATE_LETTER",
-  toggleInputDeleteNext: "TOGGLE_INPUT_DELETE_NEXT",
-  resetSubmittedTake: "RESET_SUBMITTED_TAKE",
-  resetMessage: "RESET_MESSAGE",
-};
-
-const actions: any = {
-  SET_DATA: setData,
-  UPDATE_LETTER: updateLetter,
-  TOGGLE_INPUT_DELETE_NEXT: toggleInputDeleteNext,
-  RESET_SUBMITTED_TAKE: resetSubmittedTake,
-  RESET_MESSAGE: resetMessage,
-};
+const word = sample(words) || "ERROR";
 
 const defaultState = {
   takes: [],
@@ -294,31 +35,27 @@ const defaultState = {
   activeTakeId: "",
   wordGuessed: false,
   error: "",
+  dailyWord: [],
 };
 
-function reducer(state: State, action: Action) {
-  const actionType: string = action.type;
-  const triggerFunc: Function = actions[actionType];
-  const defaultState = triggerFunc(state, action.payload);
-
-  switch (actionType) {
-    case actionConstants.setData:
-      return triggerFunc(state, action.payload);
-    case actionConstants.updateLetter:
-      return triggerFunc(state, action.payload);
-    case actionConstants.toggleInputDeleteNext:
-      return triggerFunc(state, action.payload);
-    default:
-      return defaultState;
-  }
-}
-
-const dailyWord = initializeDailyWord();
-const initialData = initializeData();
+const dailyWord = initializeDailyWord(word);
+const initialData = initializeData(word);
+const keyboard = initializeKeyboard();
 function Game() {
   const [state, dispatch] = useReducer(reducer, defaultState);
   const [loading, setLoading] = useState(false);
   const groupedLetters = groupBy(state.letters, "takeId");
+
+  const onChange = (value: string, domId: string | null) => {
+    if (loading) return;
+    dispatch({
+      type: actionConstants.updateLetter,
+      payload: {
+        value: toUpper(value),
+        domId: domId || state.activeLetter.domId,
+      },
+    });
+  };
 
   const handleDocumentClick = () => {
     const elements = document.getElementsByClassName(
@@ -328,7 +65,10 @@ function Game() {
   };
 
   useEffect(() => {
-    dispatch({ type: actionConstants.setData, payload: initialData });
+    dispatch({
+      type: actionConstants.setData,
+      payload: { initialData, dailyWord, word, keyboard },
+    });
     window.addEventListener("click", handleDocumentClick);
     return () => {
       window.removeEventListener("click", handleDocumentClick);
@@ -359,13 +99,17 @@ function Game() {
         letter.ref.current?.classList.add("rotate-animation");
         letter.ref.current?.classList.add("text-white");
         letter.ref.current?.classList.add(bgColor);
-      }, index * 350);
+      }, index * 500);
       setTimeout(() => {
         if (index === size(letters) - 1) {
           setLoading(false);
           dispatch({ type: actionConstants.resetSubmittedTake, payload: null });
+          dispatch({
+            type: actionConstants.updateKeyboardKeys,
+            payload: null,
+          });
         }
-      }, size(letters) * 350);
+      }, size(letters) * 500);
     });
   }, [state.submittedTakeId, groupedLetters]);
 
@@ -379,6 +123,7 @@ function Game() {
 
   return (
     <div className="main-wrapper">
+      {word}
       {map(groupedLetters, (letters, takeId) => {
         const take = find(state.takes, (t) => t.id === takeId);
         return (
@@ -398,12 +143,50 @@ function Game() {
                   dispatch={dispatch}
                   disabled={state.activeLetter.domId !== letter.domId}
                   loading={loading}
+                  onChange={onChange}
                 />
               );
             })}
           </div>
         );
       })}
+      <div className="keyboard-wrapper">
+        {map(state.keyboard, (row: Array<KeyboardKey>) => {
+          return (
+            <div className={`row-${first(row)?.row}`}>
+              {map(row, (item: KeyboardKey) => {
+                let keyColor = "neutral";
+                if (item.isCorrect) {
+                  keyColor = "green-key";
+                } else if (item.consists) {
+                  keyColor = "yellow-key";
+                } else if (
+                  !item.consists &&
+                  !item.isCorrect &&
+                  item.isSubmitted
+                ) {
+                  keyColor = "grey-key";
+                }
+                return (
+                  <div
+                    className={`row-${item.row}-item font-${size(
+                      item.value
+                    )} ${keyColor}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => onChange(item.value, null)}
+                  >
+                    {item.value !== keysConstants.backspace ? (
+                      item.value
+                    ) : (
+                      <BackspaceIcon />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
       {state.message &&
         createPortal(
           <div className="popup toaster">{state.message}</div>,
@@ -418,21 +201,18 @@ const RenderLetter = memo(
     const {
       value,
       domId,
-      dispatch,
       disabled,
       isCorrect,
       consists,
       isIncorrect,
-      loading = false,
+      onChange,
     } = props;
     const isSubmitted = isCorrect || consists || isIncorrect;
+    const showBorder = !isSubmitted && !isEmpty(value);
+    const toggleAnimation = !isEmpty(value);
 
-    const onChange = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (loading) return;
-      dispatch({
-        type: actionConstants.updateLetter,
-        payload: { value: e.key, domId: domId },
-      });
+    const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      onChange(toUpper(e.key), domId);
     };
 
     return (
@@ -442,14 +222,15 @@ const RenderLetter = memo(
         type="text"
         tabIndex={-1}
         maxLength={1}
-        onKeyDown={onChange}
+        onKeyDown={onKeyDown}
         className={classNames("letter", {
-          "input-animation": !isEmpty(value),
+          "input-animation": toggleAnimation,
           "input-active": !disabled,
           disabled: disabled,
-          "letter-border": !isSubmitted && !isEmpty(value),
+          "letter-border": showBorder,
         })}
         autoFocus={!disabled}
+        readOnly
       />
     );
   })
