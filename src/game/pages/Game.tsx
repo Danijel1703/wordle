@@ -26,7 +26,7 @@ import { actionConstants, keysConstants } from "../constants";
 import { initializeKeyboard } from "../state/initializers";
 import BackspaceIcon from "../../assets/BackspaceIcon";
 
-const word = sample(words) || "ERROR";
+const word = "REALM" || sample(words);
 
 const defaultState = {
   takes: [],
@@ -45,6 +45,7 @@ function Game() {
   const [state, dispatch] = useReducer(reducer, defaultState);
   const [loading, setLoading] = useState(false);
   const groupedLetters = groupBy(state.letters, "takeId");
+  const anyTakeSubmitted = find(state.takes, (take) => take.isSubmitted);
 
   const onChange = (value: string, domId: string | null) => {
     if (loading) return;
@@ -67,7 +68,7 @@ function Game() {
   useEffect(() => {
     dispatch({
       type: actionConstants.setData,
-      payload: { initialData, dailyWord, word, keyboard },
+      payload: { initialData, dailyWord, word, keyboard, hardMode: false },
     });
     window.addEventListener("click", handleDocumentClick);
     return () => {
@@ -121,9 +122,26 @@ function Game() {
     }
   }, [state.message]);
 
+  const toggleHardMode = () => {
+    dispatch({ type: actionConstants.toggleHardMode, payload: null });
+  };
+
   return (
     <React.Fragment>
       <div className="main-wrapper">
+        <div className="hard-mode-toggle">
+          <p>Hard Mode</p>
+          <label className="switch">
+            <input
+              type="checkbox"
+              value={state.hardMode}
+              onChange={toggleHardMode}
+              disabled={anyTakeSubmitted}
+            />
+            <span className="slider round"></span>
+          </label>
+        </div>
+
         <div className="words-grid">
           {word}
           {map(groupedLetters, (letters, takeId) => {

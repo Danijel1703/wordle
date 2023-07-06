@@ -12,6 +12,7 @@ export const actionConstants = {
   resetSubmittedTake: "RESET_SUBMITTED_TAKE",
   resetMessage: "RESET_MESSAGE",
   updateKeyboardKeys: "UPDATE_KEYBOARD_KEYS",
+  toggleHardMode: "TOGGLE_HARD_MODE",
 };
 
 export const keyobardKeysConstants: Record<string, Array<string>> = {

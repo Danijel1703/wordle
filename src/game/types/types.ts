@@ -35,6 +35,8 @@ export type State = {
   dailyWord: Array<{ id: string; value: string; letterCount: number }>;
   word: string;
   keyboard: Keyboard;
+  hardMode: boolean;
+  isPropaginating: boolean;
 };
 
 export type Keyboard = {
