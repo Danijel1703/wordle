@@ -26,7 +26,7 @@ import { actionConstants, keysConstants } from "../constants";
 import { initializeKeyboard } from "../state/initializers";
 import BackspaceIcon from "../../assets/BackspaceIcon";
 
-const word = "REALM" || sample(words);
+const word = sample(words) || "REALM";
 
 const defaultState = {
   takes: [],
@@ -143,7 +143,6 @@ function Game() {
         </div>
 
         <div className="words-grid">
-          {word}
           {map(groupedLetters, (letters, takeId) => {
             const take = find(state.takes, (t) => t.id === takeId);
             return (
