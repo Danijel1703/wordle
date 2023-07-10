@@ -104,60 +104,69 @@ const getError = ({
         [...oldCorrectLetters, ...oldGuessedLetters],
         "sortOrder"
       );
-      each(mustContainLetters, (mustContainLetter) => {
-        const newLetter = find(letters, { value: mustContainLetter.value });
-        if (!newLetter && isEmpty(error) && !take?.isSubmitted)
-          error = `Guess must contain letter ${mustContainLetter.value}`;
-        else if (newLetter && isEmpty(error) && !take?.isSubmitted) {
-          const takeLetters = filter(state.letters, {
-            takeId: mustContainLetter.takeId,
+      each(mustContainLetters, (letter: StateLetter) => {
+        const takeLetters = filter(state.letters, {
+          takeId: letter.takeId,
+        });
+        delete letter["sortOrder"];
+        const newLetter = find(letters, { value: letter.value });
+        const takeLetter = find(takeLetters, { value: letter.value });
+        const letterIndex = indexOf(takeLetters, takeLetter) + 1;
+        if (isEmpty(newLetter) && isEmpty(error) && !take?.isSubmitted) {
+          error = `Guess must contain letter ${letter.value}`;
+        }
+        if (letter.isCorrect && take && !take.isSubmitted) {
+          const newCorrectLetter = find(letters, {
+            value: letter.value,
+            id: letter.id,
           });
-          delete mustContainLetter["sortOrder"];
-          const takeLetter = find(takeLetters, { id: mustContainLetter.id });
-          const letterIndex = indexOf(takeLetters, takeLetter) + 1;
-          if (
-            mustContainLetter.isCorrect &&
-            mustContainLetter.id !== newLetter.id &&
-            !take?.isSubmitted
-          ) {
+          if (!newCorrectLetter && isEmpty(error)) {
             switch (letterIndex) {
               case 1:
-                error = `1st letter must be ${newLetter.value}`;
+                error = `1st letter must be ${letter.value}`;
                 break;
               case 2:
-                error = `2nd letter must be ${newLetter.value}`;
+                error = `2nd letter must be ${letter.value}`;
                 break;
               case 3:
-                error = `3rd letter must be ${newLetter.value}`;
+                error = `3rd letter must be ${letter.value}`;
                 break;
               case 4:
-                error = `4th letter must be ${newLetter.value}`;
+                error = `4th letter must be ${letter.value}`;
                 break;
               case 5:
-                error = `5th letter must be ${newLetter.value}`;
+                error = `5th letter must be ${letter.value}`;
                 break;
             }
-          } else if (
-            mustContainLetter.consists &&
-            mustContainLetter.id === newLetter.id &&
-            !take?.isSubmitted
-          ) {
-            switch (letterIndex) {
-              case 1:
-                error = `1st letter cannot be ${newLetter.value}`;
-                break;
-              case 2:
-                error = `2nd letter cannot be ${newLetter.value}`;
-                break;
-              case 3:
-                error = `3rd letter cannot be ${newLetter.value}`;
-                break;
-              case 4:
-                error = `4th letter cannot be ${newLetter.value}`;
-                break;
-              case 5:
-                error = `5th letter cannot be ${newLetter.value}`;
-                break;
+          }
+        }
+        if (letter.consists && take && !take.isSubmitted) {
+          const newGuessedLetters = filter(letters, {
+            value: letter.value,
+          });
+          if (!isEmpty(newGuessedLetters)) {
+            const invalidLetter = find(
+              newGuessedLetters,
+              (l) => l.id === letter.id && l.value === letter.value
+            );
+            if (isEmpty(error) && invalidLetter) {
+              switch (letterIndex) {
+                case 1:
+                  error = `1st letter cannot be ${letter.value}`;
+                  break;
+                case 2:
+                  error = `2nd letter cannot be ${letter.value}`;
+                  break;
+                case 3:
+                  error = `3rd letter cannot be ${letter.value}`;
+                  break;
+                case 4:
+                  error = `4th letter cannot be ${letter.value}`;
+                  break;
+                case 5:
+                  error = `5th letter cannot be ${letter.value}`;
+                  break;
+              }
             }
           }
         }
@@ -165,7 +174,7 @@ const getError = ({
     }
     if (notEnoughLetters) error = "Not enough letters";
     if (invalidWord) error = "Not in word list";
-    if (error) return error;
+    if (!isEmpty(error)) return error;
   }
   return undefined;
 };
