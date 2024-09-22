@@ -16,11 +16,7 @@ import {
 	sortBy,
 	toUpper,
 } from "lodash-es";
-import {
-	actionConstants,
-	allowedKeysConstants,
-	keysConstants,
-} from "../constants";
+import { actionConstants, keysConstants } from "../constants";
 import { TAction, TKeyboard, TLetter, TState, TTake } from "../types";
 import words from "../words";
 
@@ -72,7 +68,7 @@ const getError = ({
 	domId: string;
 	state: TState;
 }) => {
-	const invalidKey = !includes(allowedKeysConstants, value) && size(value) > 1;
+	const invalidKey = !includes(keysConstants, value) && size(value) > 1;
 	if (invalidKey) return true;
 	const take = find(state.takes, (take) => includes(take.letterIds, domId));
 	const letters = filter(state.letters, { takeId: take?.id });

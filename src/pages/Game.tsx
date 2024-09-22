@@ -3,28 +3,19 @@ import {
 	find,
 	first,
 	groupBy,
-	isEmpty,
 	map,
 	sample,
 	size,
 	toUpper,
 } from "lodash-es";
-import React, {
-	ForwardedRef,
-	forwardRef,
-	memo,
-	useEffect,
-	useReducer,
-	useState,
-} from "react";
-import words from "../words";
-import classNames from "classnames";
-import { TKeyboardKey, TLetter, TLetterProps } from "../types";
+import React, { useEffect, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
+import { Keyboard, Letter } from "../components";
+import { actionConstants } from "../constants";
 import { initializeDailyWord, initializeData, reducer } from "../state";
-import { actionConstants, keysConstants } from "../constants";
 import { initializeKeyboard } from "../state/initializers";
-import BackspaceIcon from "../assets/BackspaceIcon";
+import { TLetter } from "../types";
+import words from "../words";
 
 const word = sample(words) as string;
 
@@ -149,7 +140,7 @@ function Game() {
 							<div className="take" id={takeId} key={takeId} ref={take.ref}>
 								{map(letters, (letter) => {
 									return (
-										<RenderLetter
+										<Letter
 											consists={letter.consists && take.isSubmitted}
 											isCorrect={letter.isCorrect && take.isSubmitted}
 											isIncorrect={
@@ -172,43 +163,7 @@ function Game() {
 						);
 					})}
 				</div>
-				<div className="keyboard-wrapper">
-					{map(state.keyboard, (row: Array<TKeyboardKey>) => {
-						return (
-							<div className={`row-${first(row)?.row}`}>
-								{map(row, (item: TKeyboardKey) => {
-									let keyColor = "neutral";
-									if (item.isCorrect) {
-										keyColor = "green-key";
-									} else if (item.consists) {
-										keyColor = "yellow-key";
-									} else if (
-										!item.consists &&
-										!item.isCorrect &&
-										item.isSubmitted
-									) {
-										keyColor = "grey-key";
-									}
-									return (
-										<div
-											className={`row-${item.row}-item font-${size(
-												item.value
-											)} ${keyColor}`}
-											style={{ cursor: "pointer" }}
-											onClick={() => onChange(item.value, null)}
-										>
-											{item.value !== keysConstants.backspace ? (
-												item.value
-											) : (
-												<BackspaceIcon />
-											)}
-										</div>
-									);
-								})}
-							</div>
-						);
-					})}
-				</div>
+				<Keyboard onChange={onChange} keyboard={state.keyboard} />
 			</div>
 			{state.message &&
 				createPortal(
@@ -218,45 +173,5 @@ function Game() {
 		</React.Fragment>
 	);
 }
-
-const RenderLetter = memo(
-	forwardRef((props: TLetterProps, ref: ForwardedRef<HTMLInputElement>) => {
-		const {
-			value,
-			domId,
-			disabled,
-			isCorrect,
-			consists,
-			isIncorrect,
-			onChange,
-		} = props;
-		const isSubmitted = isCorrect || consists || isIncorrect;
-		const showBorder = !isSubmitted && !isEmpty(value);
-		const toggleAnimation = !isEmpty(value);
-
-		const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-			onChange(toUpper(e.key), domId);
-		};
-
-		return (
-			<input
-				ref={ref}
-				value={value}
-				type="text"
-				tabIndex={-1}
-				maxLength={1}
-				onKeyDown={onKeyDown}
-				className={classNames("letter", {
-					"input-animation": toggleAnimation,
-					"input-active": !disabled,
-					disabled: disabled,
-					"letter-border": showBorder,
-				})}
-				autoFocus={!disabled}
-				readOnly
-			/>
-		);
-	})
-);
 
 export default Game;
