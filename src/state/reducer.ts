@@ -1,0 +1,340 @@
+import {
+	compact,
+	each,
+	every,
+	filter,
+	find,
+	first,
+	includes,
+	indexOf,
+	isBoolean,
+	isEmpty,
+	isNil,
+	last,
+	map,
+	size,
+	sortBy,
+	toUpper,
+} from "lodash-es";
+import {
+	actionConstants,
+	allowedKeysConstants,
+	keysConstants,
+} from "../constants";
+import { TAction, TKeyboard, TLetter, TState, TTake } from "../types";
+import words from "../words";
+
+export function reducer(state: TState, action: TAction) {
+	const actionType: string = action.type;
+	const triggerFunc: Function = actions[actionType];
+	const defaultState = triggerFunc(state, action.payload);
+	if (!isNil(actionConstants[actionType])) {
+		return triggerFunc(state, action.payload);
+	}
+	return defaultState;
+}
+
+const setData = (
+	state: TState,
+	data: {
+		initialData: { takes: Array<TTake>; letters: Array<TLetter> };
+		dailyWord: Array<{ id: string; value: string; letterCount: number }>;
+		word: string;
+		keyboard: TKeyboard;
+		hardMode: boolean;
+	}
+) => ({
+	...state,
+	...data.initialData,
+	dailyWord: data.dailyWord,
+	word: data.word,
+	activeLetter: first(data.initialData.letters),
+	activeTakeId: first(data.initialData.letters)?.takeId,
+	keyboard: data.keyboard,
+	hardMode: data.hardMode,
+});
+
+const toggleInputDeleteNext = (
+	state: TState,
+	payload: { activeLetter: TLetter }
+) => {
+	const deleteNext = isEmpty(payload.activeLetter.value);
+	const inputNext = !isEmpty(payload.activeLetter.value);
+	return { ...state, deleteNext, inputNext };
+};
+
+const getError = ({
+	value,
+	domId,
+	state,
+}: {
+	value: string;
+	domId: string;
+	state: TState;
+}) => {
+	const invalidKey = !includes(allowedKeysConstants, value) && size(value) > 1;
+	if (invalidKey) return true;
+	const take = find(state.takes, (take) => includes(take.letterIds, domId));
+	const letters = filter(state.letters, { takeId: take?.id });
+	let error = "";
+	if (value === keysConstants.enter) {
+		const notEnoughLetters = !every(
+			letters,
+			(letter) => !isEmpty(letter.value)
+		);
+		const word = map(letters, (letter) => letter.value).join("");
+		const invalidWord = !includes(words, word);
+		if (state.hardMode) {
+			type StateLetter = TLetter & { sortOrder?: number };
+			const stateLetters: Array<StateLetter> = map(
+				state.letters,
+				(letter, index) => {
+					return { ...letter, sortOrder: index };
+				}
+			);
+			const oldGuessedLetters = filter(stateLetters, { consists: true });
+			const oldCorrectLetters = filter(stateLetters, { isCorrect: true });
+			const mustContainLetters = sortBy(
+				[...oldCorrectLetters, ...oldGuessedLetters],
+				"sortOrder"
+			);
+			each(mustContainLetters, (letter: StateLetter) => {
+				const takeLetters = filter(state.letters, {
+					takeId: letter.takeId,
+				});
+				delete letter["sortOrder"];
+				const newLetter = find(letters, { value: letter.value });
+				const takeLetter = find(takeLetters, { value: letter.value });
+				const letterIndex = indexOf(takeLetters, takeLetter) + 1;
+				if (isEmpty(newLetter) && isEmpty(error) && !take?.isSubmitted) {
+					error = `Guess must contain letter ${letter.value}`;
+				}
+				if (letter.isCorrect && take && !take.isSubmitted) {
+					const newCorrectLetter = find(letters, {
+						value: letter.value,
+						id: letter.id,
+					});
+					if (!newCorrectLetter && isEmpty(error)) {
+						switch (letterIndex) {
+							case 1:
+								error = `1st letter must be ${letter.value}`;
+								break;
+							case 2:
+								error = `2nd letter must be ${letter.value}`;
+								break;
+							case 3:
+								error = `3rd letter must be ${letter.value}`;
+								break;
+							case 4:
+								error = `4th letter must be ${letter.value}`;
+								break;
+							case 5:
+								error = `5th letter must be ${letter.value}`;
+								break;
+						}
+					}
+				}
+				if (letter.consists && take && !take.isSubmitted) {
+					const newGuessedLetters = filter(letters, {
+						value: letter.value,
+					});
+					if (!isEmpty(newGuessedLetters)) {
+						const invalidLetter = find(
+							newGuessedLetters,
+							(l) => l.id === letter.id && l.value === letter.value
+						);
+						if (isEmpty(error) && invalidLetter) {
+							switch (letterIndex) {
+								case 1:
+									error = `1st letter cannot be ${letter.value}`;
+									break;
+								case 2:
+									error = `2nd letter cannot be ${letter.value}`;
+									break;
+								case 3:
+									error = `3rd letter cannot be ${letter.value}`;
+									break;
+								case 4:
+									error = `4th letter cannot be ${letter.value}`;
+									break;
+								case 5:
+									error = `5th letter cannot be ${letter.value}`;
+									break;
+							}
+						}
+					}
+				}
+			});
+		}
+		if (notEnoughLetters) error = "Not enough letters";
+		if (invalidWord) error = "Not in word list";
+		if (!isEmpty(error)) return error;
+	}
+	return undefined;
+};
+
+const updateLetter = (
+	state: TState,
+	payload: { value: string; domId: string }
+) => {
+	const error = getError({
+		value: payload.value,
+		domId: payload.domId,
+		state: state,
+	});
+	if (state.wordGuessed) return state;
+	if (error) {
+		if (isBoolean(error)) return state;
+		const take = find(state.takes, { id: state.activeTakeId });
+		take?.ref.current?.classList.add("shake-animation");
+		setTimeout(() => {
+			take?.ref.current?.classList.remove("shake-animation");
+		}, 500);
+		return { ...state, message: error };
+	}
+	switch (payload.value) {
+		case keysConstants.backspace: {
+			payload.value = "";
+			const letter = getNextLetter(state, payload.value);
+			return { ...state, activeLetter: letter };
+		}
+		case keysConstants.enter: {
+			const letter = getNextLetter(state, payload.value);
+			const nextTakeLetter = onSubmit(state, letter.takeId);
+			const letters = filter(state.letters, { takeId: state.activeTakeId });
+			const wordGuessed = every(letters, { isCorrect: true });
+			const message =
+				every(state.takes, { isSubmitted: true }) && !wordGuessed
+					? state.word
+					: state.message;
+			return {
+				...state,
+				activeLetter: nextTakeLetter,
+				submittedTakeId: letter.takeId,
+				activeTakeId: nextTakeLetter.takeId,
+				wordGuessed: wordGuessed,
+				message: message,
+			};
+		}
+		default: {
+			payload.value = toUpper(payload.value);
+			const letter = getNextLetter(state, payload.value);
+			return { ...state, activeLetter: letter };
+		}
+	}
+};
+
+const getNextLetter = (state: TState, value: string) => {
+	const letter = state.activeLetter;
+	const letters = filter(state.letters, { takeId: letter.takeId });
+	const index = indexOf(letters, letter);
+	const dir = isEmpty(value) ? -1 : 1;
+	const newLetter = letters[index + dir];
+	const isLastLetter = isLast(letters, letter) && !isEmpty(letter.value);
+	if (!isEmpty(value)) {
+		if (state.inputNext && newLetter) {
+			newLetter.value = value;
+		} else {
+			letter.value = isLastLetter ? letter.value : value;
+		}
+	} else {
+		letter.value = value;
+		if (state.deleteNext && newLetter) {
+			newLetter.value = value;
+		}
+	}
+	return newLetter || letter;
+};
+
+const onSubmit = (state: TState, takeId: string) => {
+	const take = find(state.takes, { id: takeId });
+	const letters = filter(state.letters, { takeId: takeId });
+	const dailyWordCopy = [...state.dailyWord];
+	if (take && letters) {
+		take.isSubmitted = true;
+		const correctLetters = compact(
+			map(letters, (letter) => {
+				const correctLetter = find(
+					dailyWordCopy,
+					(l) => l.id === letter.id && l.value === letter.value
+				);
+				return correctLetter;
+			})
+		);
+		const guessedLetters = compact(
+			map(letters, (letter) => {
+				const guessedLetter = find(
+					dailyWordCopy,
+					(l) => l.id !== letter.id && l.value === letter.value
+				);
+				return guessedLetter;
+			})
+		);
+		each(correctLetters, (cl) => {
+			const letter = find(letters, { id: cl.id });
+			if (letter) {
+				letter.isCorrect = true;
+				each(dailyWordCopy, (dwl) => {
+					if (dwl.value === cl.value) {
+						dwl.letterCount = dwl.letterCount - 1;
+					}
+				});
+			}
+		});
+		each(guessedLetters, (gl) => {
+			const letter = find(
+				letters,
+				(l) => l.value === gl.value && gl.id !== l.id && !l.consists
+			);
+			if (letter) {
+				letter.consists = !letter.isCorrect && gl.letterCount > 0;
+			}
+		});
+	}
+	const nextLetter = state.letters[indexOf(state.letters, last(letters)) + 1];
+	return nextLetter || state.activeLetter;
+};
+
+const updateKeyboardKeys = (state: TState) => {
+	each(state.keyboard, (items, row) => {
+		const keyboardKeys = filter(items, (item) => size(item.value) === 1);
+		each(keyboardKeys, (keyboardKey) => {
+			const submittedLetters = filter(state.letters, {
+				value: keyboardKey.value,
+			});
+			const lastEntry = last(submittedLetters);
+			if (lastEntry) {
+				keyboardKey.isCorrect = lastEntry.isCorrect;
+				keyboardKey.consists = lastEntry.consists;
+				keyboardKey.isSubmitted = true;
+			}
+		});
+	});
+	return { ...state };
+};
+
+const toggleHardMode = (state: TState) => {
+	return { ...state, hardMode: !state.hardMode };
+};
+
+const isLast = (collection: Array<object>, obj: object) => {
+	return collection[indexOf(collection, obj) + 1] === undefined;
+};
+
+const resetMessage = (state: TState) => {
+	return { ...state, message: undefined };
+};
+
+const resetSubmittedTake = (state: TState) => {
+	return { ...state, submittedTakeId: undefined };
+};
+
+const actions: any = {
+	SET_DATA: setData,
+	UPDATE_LETTER: updateLetter,
+	TOGGLE_INPUT_DELETE_NEXT: toggleInputDeleteNext,
+	RESET_SUBMITTED_TAKE: resetSubmittedTake,
+	RESET_MESSAGE: resetMessage,
+	UPDATE_KEYBOARD_KEYS: updateKeyboardKeys,
+	TOGGLE_HARD_MODE: toggleHardMode,
+};
